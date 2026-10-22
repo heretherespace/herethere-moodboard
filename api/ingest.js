@@ -3,7 +3,7 @@
 // Header:  Authorization: Bearer <INGEST_TOKEN>
 // New pins land in the "Inbox" board, ready to be moved into a subsection.
 
-import { cleanSupabaseUrl } from "./config.js";
+import { supabaseUrlFor } from "./config.js";
 
 const MAX_BYTES = 4 * 1024 * 1024;
 
@@ -14,7 +14,7 @@ function env(name) {
 }
 
 async function sb(path, init = {}) {
-  const url = cleanSupabaseUrl(env("SUPABASE_URL")) + path;
+  const url = supabaseUrlFor(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY || env("SUPABASE_SERVICE_ROLE_KEY")) + path;
   const key = env("SUPABASE_SERVICE_ROLE_KEY").trim();
   const r = await fetch(url, {
     ...init,
