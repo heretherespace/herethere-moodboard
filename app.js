@@ -28,6 +28,17 @@ const mains = () => sections.filter((s) => !s.parent_id || !sections.some((m) =>
 const subsOf = (id) => sections.filter((s) => s.parent_id === id).sort(byOrder);
 const secLabel = (s) => { const m = s.parent_id && sections.find((x) => x.id === s.parent_id); return m ? m.title + " › " + s.title : s.title; };
 const imgUrl = (path) => urlCache.get(path) || "";
+const pinSort = (p) => (p.sort ?? -(Date.parse(p.created_at || 0) / 1000));
+const pinsIn = (secId) => pins.filter((p) => p.section_id === secId).sort((a, b) => pinSort(a) - pinSort(b));
+const topSort = (secId) => { const l = pinsIn(secId); return l.length ? pinSort(l[0]) - 1 : 0; };
+const isNote = (p) => !p.image_path && !safeUrl(p.link);
+function needsUpdate(error) {
+  if (error && /column|schema cache/i.test(error.message || "") && /sort|style/i.test(error.message || "")) {
+    setStatus("One-time update needed: in Supabase, run supabase/002_order_and_text.sql (SQL Editor → paste → Run), then reload.");
+    return true;
+  }
+  return false;
+}
 
 async function signUrls(paths) {
   const need = [...new Set(paths.filter((p) => p && !urlCache.has(p)))];
@@ -77,12 +88,13 @@ async function removeFiles(paths) {
 
 /* ---------- rendering ---------- */
 function tile(p) {
-  const fig = document.createElement("figure"); fig.className = "tile"; fig.dataset.span = String(p.size || 1);
+  const fig = document.createElement("figure"); fig.className = "tile"; fig.dataset.span = String(p.size || 1); fig.dataset.id = p.id;
   const link = safeUrl(p.link);
+  if (isNote(p)) return noteTile(p, fig);
   if (p.image_path) {
     const im = document.createElement("img");
     im.src = imgUrl(p.image_path); im.alt = p.caption || "Pinned image"; im.loading = "lazy";
-    im.onclick = () => openLb(p); im.onload = () => layoutSoon();
+    im.onclick = () => { if (!justDragged) openLb(p); }; im.onload = () => layoutSoon(); im.draggable = false;
     fig.appendChild(im);
     if (p.caption || link) {
       const c = document.createElement("figcaption"); c.className = "cap";
@@ -107,16 +119,167 @@ function tile(p) {
     fig.addEventListener("mouseleave", () => { if (hotPin === p.id) hotPin = null; fig.classList.remove("hot"); });
   }
   const bar = document.createElement("div"); bar.className = "tbar";
+  sizeButtons(bar, p);
+  const e = document.createElement("button"); e.type = "button"; e.textContent = "✎"; e.setAttribute("aria-label", "Edit pin");
+  e.onclick = () => openDlg({ mode: "edit", pin: p }); bar.appendChild(e);
+  fig.appendChild(bar);
+  initDrag(fig, p);
+  return fig;
+}
+
+/* ---------- text notes ---------- */
+function sizeButtons(bar, p) {
   [[1, "S", "Small"], [2, "M", "Medium (2 columns)"], [3, "L", "Large (3 columns)"]].forEach(([n, l, title]) => {
     const b = document.createElement("button"); b.type = "button"; b.className = "sz"; b.textContent = l; b.title = title;
     b.setAttribute("aria-label", "Size " + title); b.setAttribute("aria-pressed", String((p.size || 1) === n));
     b.onclick = (ev) => { ev.stopPropagation(); setSize(p, n); };
     bar.appendChild(b);
   });
-  const e = document.createElement("button"); e.type = "button"; e.textContent = "✎"; e.setAttribute("aria-label", "Edit pin");
-  e.onclick = () => openDlg({ mode: "edit", pin: p }); bar.appendChild(e);
-  fig.appendChild(bar);
+}
+function noteTile(p, fig) {
+  const style = p.style === "body" ? "body" : "heading";
+  const box = document.createElement("div"); box.className = "note " + style;
+  const t = document.createElement("div"); t.className = "txt"; t.textContent = p.caption || ""; t.dataset.ph = "Write something…";
+  t.setAttribute("role", "textbox"); t.setAttribute("aria-label", "Text note");
+  box.appendChild(t); fig.appendChild(box);
+  const startEdit = () => {
+    if (t.isContentEditable) return;
+    t.contentEditable = "plaintext-only";
+    if (t.contentEditable !== "plaintext-only") t.contentEditable = "true";
+    t.focus();
+    const r = document.createRange(); r.selectNodeContents(t); r.collapse(false); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);
+  };
+  t.addEventListener("dblclick", startEdit);
+  t.addEventListener("input", () => layoutSoon());
+  t.addEventListener("keydown", (ev) => { if (ev.key === "Escape") { ev.preventDefault(); t.blur(); } });
+  t.addEventListener("blur", async () => {
+    t.contentEditable = "false";
+    const v = t.innerText.replace(/\u00a0/g, " ").replace(/\n{3,}/g, "\n\n").trim();
+    if (!v) { await deletePin(p); return; }
+    if (v === (p.caption || "")) return;
+    p.caption = v;
+    const { error } = await sb.from("pins").update({ caption: v }).eq("id", p.id);
+    if (error) fail(error);
+  });
+  const bar = document.createElement("div"); bar.className = "tbar";
+  const st = document.createElement("button"); st.type = "button"; st.textContent = "Aa";
+  st.title = style === "heading" ? "Switch to body text" : "Switch to heading"; st.setAttribute("aria-label", st.title);
+  st.onclick = async (ev) => {
+    ev.stopPropagation(); p.style = style === "heading" ? "body" : "heading"; render();
+    const { error } = await sb.from("pins").update({ style: p.style }).eq("id", p.id);
+    if (error && !needsUpdate(error)) fail(error);
+  };
+  bar.appendChild(st);
+  sizeButtons(bar, p);
+  const e = document.createElement("button"); e.type = "button"; e.textContent = "✎"; e.setAttribute("aria-label", "Edit text"); e.onclick = (ev) => { ev.stopPropagation(); startEdit(); };
+  const x = document.createElement("button"); x.type = "button"; x.textContent = "✕"; x.setAttribute("aria-label", "Delete text");
+  x.onclick = (ev) => { ev.stopPropagation(); if (x.dataset.armed) { deletePin(p); return; } x.dataset.armed = "1"; x.textContent = "?"; x.title = "Click again to delete"; setTimeout(() => { delete x.dataset.armed; x.textContent = "✕"; }, 2500); };
+  bar.append(e, x); fig.appendChild(bar);
+  fig._startEdit = startEdit;
+  initDrag(fig, p);
   return fig;
+}
+async function addText(secId) {
+  const row = { section_id: secId, caption: "", link: "", image_path: null, size: 1, sort: topSort(secId), style: "heading" };
+  let { data, error } = await sb.from("pins").insert(row).select().single();
+  if (error && needsUpdate(error)) {
+    // Works before the update too: save without order/style.
+    delete row.sort; delete row.style;
+    ({ data, error } = await sb.from("pins").insert({ ...row, caption: "New note" }).select().single());
+  }
+  if (error) { fail(error); return; }
+  pins.push(data); render();
+  const fig = document.querySelector('.tile[data-id="' + data.id + '"]');
+  if (fig && fig._startEdit) { fig.scrollIntoView({ block: "center" }); fig._startEdit(); }
+}
+async function deletePin(p) {
+  pins = pins.filter((x) => x.id !== p.id); render();
+  const { error } = await sb.from("pins").delete().eq("id", p.id);
+  if (error) { fail(error); return; }
+  if (p.image_path) removeFiles([p.image_path]);
+}
+
+/* ---------- drag to rearrange ---------- */
+let drag = null, justDragged = false;
+function initDrag(fig, p) {
+  fig.addEventListener("pointerdown", (ev) => {
+    if (ev.button > 0 || drag) return;
+    if (ev.target.closest("button, a, input, textarea, select, .tbar, [contenteditable='true'], [contenteditable='plaintext-only']")) return;
+    const sx = ev.clientX, sy = ev.clientY, touch = ev.pointerType !== "mouse";
+    let timer = null;
+    const cleanup = () => { clearTimeout(timer); window.removeEventListener("pointermove", mv); window.removeEventListener("pointerup", cleanup); window.removeEventListener("pointercancel", cleanup); };
+    const begin = (x, y) => { cleanup(); startDrag(fig, p, x, y); };
+    const mv = (e) => {
+      const d = Math.hypot(e.clientX - sx, e.clientY - sy);
+      if (touch) { if (d > 8) cleanup(); } else if (d > 6) begin(e.clientX, e.clientY);
+    };
+    if (touch) timer = setTimeout(() => begin(sx, sy), 380);
+    window.addEventListener("pointermove", mv); window.addEventListener("pointerup", cleanup); window.addEventListener("pointercancel", cleanup);
+  });
+}
+function startDrag(fig, p, x, y) {
+  const r = fig.getBoundingClientRect();
+  const ghost = fig.cloneNode(true); ghost.classList.add("ghost");
+  Object.assign(ghost.style, { left: r.left + "px", top: r.top + "px", width: r.width + "px", height: r.height + "px" });
+  document.body.appendChild(ghost);
+  fig.classList.add("placeholder"); document.body.classList.add("drag-on");
+  drag = { fig, p, ghost, dx: x - r.left, dy: y - r.top, startGrid: fig.parentElement, startNext: fig.nextSibling, lx: x, ly: y };
+  if (navigator.vibrate) try { navigator.vibrate(10); } catch (e) {}
+  const stopTouch = (e) => e.preventDefault();
+  window.addEventListener("touchmove", stopTouch, { passive: false });
+  const move = (e) => {
+    drag.lx = e.clientX; drag.ly = e.clientY;
+    ghost.style.left = e.clientX - drag.dx + "px"; ghost.style.top = e.clientY - drag.dy + "px";
+    const vh = innerHeight; if (e.clientY < 70) scrollBy(0, -14); else if (e.clientY > vh - 70) scrollBy(0, 14);
+    placeAt(e.clientX, e.clientY);
+  };
+  const end = async (e) => {
+    window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", end); window.removeEventListener("pointercancel", cancel);
+    window.removeEventListener("touchmove", stopTouch);
+    ghost.remove(); fig.classList.remove("placeholder"); document.body.classList.remove("drag-on");
+    justDragged = true; setTimeout(() => (justDragged = false), 80);
+    const d = drag; drag = null;
+    await commitDrop(d);
+  };
+  const cancel = () => { if (!drag) return; drag.startGrid.insertBefore(fig, drag.startNext); end(); };
+  window.addEventListener("pointermove", move); window.addEventListener("pointerup", end); window.addEventListener("pointercancel", cancel);
+  layoutSoon();
+}
+function placeAt(x, y) {
+  const el = document.elementFromPoint(x, y); if (!el) return;
+  const fig = drag.fig;
+  const tgt = el.closest(".grid > .tile:not(.placeholder)");
+  if (tgt) {
+    const rr = tgt.getBoundingClientRect();
+    const before = x < rr.left + rr.width / 2 || (x < rr.right && y < rr.top + rr.height * 0.25);
+    const g = tgt.parentElement;
+    if (before) { if (tgt.previousElementSibling !== fig) { g.insertBefore(fig, tgt); layoutSoon(); } }
+    else if (tgt.nextElementSibling !== fig) { g.insertBefore(fig, tgt.nextElementSibling); layoutSoon(); }
+    return;
+  }
+  const grid = el.closest(".grid");
+  if (grid && fig.parentElement !== grid) {
+    const add = grid.querySelector(":scope > .addtile");
+    if (el.closest(".addtile") && add) grid.insertBefore(fig, add.nextElementSibling); else grid.appendChild(fig);
+    layoutSoon();
+  }
+}
+async function commitDrop(d) {
+  const grid = d.fig.parentElement; const secId = grid && grid.dataset.section;
+  if (!secId) { render(); return; }
+  const tiles = [...grid.querySelectorAll(":scope > .tile")];
+  const i = tiles.indexOf(d.fig);
+  const byId = (el) => pins.find((x) => x.id === el.dataset.id);
+  const prev = tiles[i - 1] && byId(tiles[i - 1]), next = tiles[i + 1] && byId(tiles[i + 1]);
+  const sort = prev && next ? (pinSort(prev) + pinSort(next)) / 2 : prev ? pinSort(prev) + 1 : next ? pinSort(next) - 1 : 0;
+  const moved = d.p.section_id !== secId;
+  if (!moved && Math.abs(sort - pinSort(d.p)) < 1e-9) { render(); return; }
+  d.p.sort = sort; d.p.section_id = secId; render();
+  const { error } = await sb.from("pins").update({ sort, section_id: secId }).eq("id", d.p.id);
+  if (error) {
+    if (needsUpdate(error) && moved) { await sb.from("pins").update({ section_id: secId }).eq("id", d.p.id); }
+    else if (!needsUpdate(error)) fail(error);
+  }
 }
 
 let layT = 0;
@@ -165,20 +328,24 @@ function titleEl(tag, cls, s) {
   return h;
 }
 function pinGrid(sec, label) {
-  const grid = document.createElement("div"); grid.className = "grid";
-  const add = document.createElement("button"); add.type = "button"; add.className = "addtile";
-  add.innerHTML = "<b>+ Add</b><span>Paste, drop or upload images · Pinterest or Instagram link</span>";
-  add.setAttribute("aria-label", "Add pin to " + label);
-  add.onclick = () => openDlg({ mode: "add", sectionId: sec.id });
+  const grid = document.createElement("div"); grid.className = "grid"; grid.dataset.section = sec.id;
+  const add = document.createElement("div"); add.className = "addtile";
+  const ab = document.createElement("button"); ab.type = "button"; ab.className = "add-img";
+  ab.innerHTML = "<b>+ Add</b><span>Paste, drop or upload images · Pinterest or Instagram link</span>";
+  ab.setAttribute("aria-label", "Add pin to " + label); ab.onclick = () => openDlg({ mode: "add", sectionId: sec.id });
+  const tb = document.createElement("button"); tb.type = "button"; tb.className = "add-txt"; tb.textContent = "+ Text";
+  tb.setAttribute("aria-label", "Add text to " + label); tb.onclick = () => addText(sec.id);
+  add.append(ab, tb);
   add.addEventListener("dragover", (ev) => { if ([...(ev.dataTransfer?.types || [])].includes("Files")) { ev.preventDefault(); add.classList.add("dropping"); } });
   add.addEventListener("dragleave", () => add.classList.remove("dropping"));
   add.addEventListener("drop", (ev) => { add.classList.remove("dropping"); const f = imgFiles(ev.dataTransfer); if (!f.length) return; ev.preventDefault(); openDlg({ mode: "add", sectionId: sec.id }); addFiles(f); });
   grid.appendChild(add);
-  pins.filter((p) => p.section_id === sec.id).sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))).forEach((p) => grid.appendChild(tile(p)));
+  pinsIn(sec.id).forEach((p) => grid.appendChild(tile(p)));
   return grid;
 }
 
 function render() {
+  if (drag) return;
   const ms = mains();
   if (tab !== "All" && !ms.some((m) => m.id === tab)) tab = "All";
   $("count").textContent = pins.length + " pin" + (pins.length === 1 ? "" : "s") + " · " + ms.length + " board" + (ms.length === 1 ? "" : "s");
@@ -364,8 +531,10 @@ $("dlg-form").addEventListener("submit", async (ev) => {
   }
   if (!st.images.length && !link) { $("dlg-hint").textContent = "Paste an image or add a link first."; return; }
   closeDlg(false);
-  const rows = st.images.length ? st.images.map((path) => ({ section_id, image_path: path, link, caption })) : [{ section_id, image_path: null, link, caption }];
-  const { data, error } = await sb.from("pins").insert(rows).select();
+  const top = topSort(section_id);
+  let rows = st.images.length ? st.images.map((path, i) => ({ section_id, image_path: path, link, caption, sort: top - st.images.length + i })) : [{ section_id, image_path: null, link, caption, sort: top }];
+  let { data, error } = await sb.from("pins").insert(rows).select();
+  if (error && needsUpdate(error)) { rows = rows.map(({ sort, ...r }) => r); ({ data, error } = await sb.from("pins").insert(rows).select()); }
   if (error) { fail(error); return; }
   pins.push(...data); render();
 });
