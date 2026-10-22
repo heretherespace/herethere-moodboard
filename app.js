@@ -1,7 +1,7 @@
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm";
 
 const $ = (id) => document.getElementById(id);
-let sb = null, user = null;
+let sb = null, user = null, cfg = {};
 let sections = [], pins = [];
 let renaming = null, lastSec = null, dlgState = null, hotPin = null;
 const urlCache = new Map(); // image_path -> signed url
@@ -428,16 +428,32 @@ $("login-form").addEventListener("submit", async (ev) => {
   ev.preventDefault();
   const email = $("login-email").value.trim(); if (!email) return;
   $("login-btn").disabled = true; $("login-status").textContent = "Sending…";
-  const { error } = await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: location.origin } });
+  let msg = "";
+  try {
+    const { error } = await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: location.origin } });
+    if (error) msg = error.message;
+  } catch (e) { msg = e.message || String(e); }
+  if (msg) {
+    // Ask Supabase directly so the message says what actually went wrong.
+    try {
+      const r = await fetch(cfg.supabaseUrl + "/auth/v1/otp?redirect_to=" + encodeURIComponent(location.origin), {
+        method: "POST",
+        headers: { "Content-Type": "application/json", apikey: cfg.supabaseAnonKey },
+        body: JSON.stringify({ email, create_user: true }),
+      });
+      const t = (await r.text()).replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 160);
+      if (r.ok) msg = "";
+      else msg += " (Supabase said " + r.status + ": " + (t || r.statusText) + ")";
+    } catch (e2) { msg += " (couldn't reach Supabase: " + (e2.message || e2) + ")"; }
+  }
   $("login-btn").disabled = false;
-  $("login-status").textContent = error ? "Couldn't send the link: " + error.message : "Check your email and tap the link. You can close this tab.";
+  $("login-status").textContent = msg ? "Couldn't send the link: " + msg : "Check your email and tap the link. You can close this tab.";
 });
 $("signout").onclick = async () => { await sb.auth.signOut(); location.reload(); };
 
 function showApp(on) { $("app").hidden = !on; $("login").hidden = on; }
 
 async function boot() {
-  let cfg;
   try { cfg = await (await fetch("/api/config", { cache: "no-store" })).json(); } catch (e) { cfg = {}; }
   if (!cfg.supabaseUrl || !cfg.supabaseAnonKey) {
     showApp(false); $("login-form").hidden = true;
