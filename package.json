@@ -1,0 +1,7 @@
+{
+  "name": "herethere-moodboard",
+  "private": true,
+  "type": "module",
+  "description": "HERE/THERE Moodboard — pin wall with boards, subsections, photos and Pinterest/Instagram links",
+  "engines": { "node": ">=18" }
+}

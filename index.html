@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>HERE/THERE Moodboard</title>
+<meta name="theme-color" content="#141716">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Moodboard">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="icon" href="/icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800;900&family=Figtree:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="/styles.css">
+<style>
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0}
+img{max-width:100%}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+
+<section class="wrap login" id="login" hidden>
+  <h1>Mood&shy;board</h1>
+  <p>Sign in with your email. We'll send you a one-time link.</p>
+  <form id="login-form" autocomplete="on">
+    <input type="email" id="login-email" placeholder="you@example.com" required aria-label="Email">
+    <button class="btn solid" type="submit" id="login-btn">Send link</button>
+  </form>
+  <p class="status" id="login-status" role="status"></p>
+</section>
+
+<div class="wrap" id="app" hidden>
+  <header class="mast">
+    <h1>Moodboard</h1>
+    <div class="meta">
+      <span id="count">Loading…</span>
+      <label class="zoom" for="zoom">Photo size <input type="range" id="zoom" min="140" max="440" step="10" value="220"></label>
+      <span style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end"><button class="btn" type="button" id="add-main">+ Main section</button><button class="btn solid" type="button" id="add-any">+ Add pin</button></span>
+      <span class="whoami"><span id="who"></span> · <button class="linkbtn" type="button" id="signout">Sign out</button></span>
+    </div>
+  </header>
+  <div class="status" id="status" role="status"></div>
+  <nav class="tabs" id="tabs" aria-label="Main sections"></nav>
+  <main id="board" style="display:flex;flex-direction:column;gap:56px"></main>
+  <form class="newsec" id="newsec" autocomplete="off">
+    <input id="newsec-title" placeholder="New main section…" aria-label="New main section name" maxlength="60">
+    <button class="btn" type="submit">Add main section</button>
+  </form>
+</div>
+
+<dialog id="dlg" aria-labelledby="dlg-h">
+  <form class="dlg" id="dlg-form" method="dialog" autocomplete="off">
+    <h2 id="dlg-h">Add pin</h2>
+    <div class="drop" id="drop" contenteditable="true" role="button" aria-label="Paste or drop images here">
+      <strong>Paste (⌘V / Ctrl+V) or drop images here</strong>
+      <span>…or <button type="button" class="btn" id="pick" style="padding:3px 12px">choose files</button></span>
+    </div>
+    <input type="file" id="file" accept="image/*" multiple hidden>
+    <div class="thumbs" id="thumbs"></div>
+    <label for="f-link">Link (Pinterest, Instagram or any page)<input type="url" id="f-link" placeholder="https://pin.it/…  ·  https://www.instagram.com/p/…"></label>
+    <label for="f-cap">Caption<textarea id="f-cap" rows="2" placeholder="What you like about it"></textarea></label>
+    <label for="f-sec">Section<select id="f-sec"></select></label>
+    <p class="hint" id="dlg-hint">Each image becomes its own pin. A link with no image becomes a link card.</p>
+    <div class="row">
+      <button type="button" class="icon" id="dlg-del" hidden aria-label="Delete pin">Delete</button>
+      <div class="right"><button type="button" class="btn" id="dlg-cancel">Cancel</button><button type="submit" class="btn solid" id="dlg-save">Save</button></div>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="lb" id="lb" aria-label="Image">
+  <img id="lb-img" alt="">
+  <div class="row"><span class="cap" id="lb-cap"></span><span style="display:flex;gap:8px"><a class="btn" id="lb-link" target="_blank" rel="noopener" hidden>Open link ↗</a><button class="btn" type="button" id="lb-close">Close</button></span></div>
+</dialog>
+
+<script type="module" src="/app.js"></script>
+</body>
+</html>
