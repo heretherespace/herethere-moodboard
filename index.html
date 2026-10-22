@@ -25,9 +25,15 @@ img{max-width:100%}
 
 <section class="wrap login" id="login" hidden>
   <h1>Mood&shy;board</h1>
-  <p>Sign in with your email. We'll send you a one-time link.</p>
-  <form id="login-form" autocomplete="on">
-    <input type="email" id="login-email" placeholder="you@example.com" required aria-label="Email">
+  <p>Sign in with your email and password.</p>
+  <form id="pw-form" autocomplete="on">
+    <input type="email" id="pw-email" placeholder="you@example.com" required aria-label="Email" autocomplete="username">
+    <input type="password" id="pw-pass" placeholder="Password" required aria-label="Password" autocomplete="current-password">
+    <button class="btn solid" type="submit" id="pw-btn">Sign in</button>
+  </form>
+  <p class="hint">No password? <button class="linkbtn" type="button" id="show-link">Email me a one-time link instead</button></p>
+  <form id="login-form" autocomplete="on" hidden>
+    <input type="email" id="login-email" placeholder="you@example.com" required aria-label="Email for sign-in link">
     <button class="btn solid" type="submit" id="login-btn">Send link</button>
   </form>
   <p class="status" id="login-status" role="status"></p>

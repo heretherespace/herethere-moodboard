@@ -449,6 +449,16 @@ $("login-form").addEventListener("submit", async (ev) => {
   $("login-btn").disabled = false;
   $("login-status").textContent = msg ? "Couldn't send the link: " + msg : "Check your email and tap the link. You can close this tab.";
 });
+$("show-link").onclick = () => { $("login-form").hidden = false; $("login-email").value = $("pw-email").value; $("login-email").focus(); };
+$("pw-form").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  const email = $("pw-email").value.trim(), password = $("pw-pass").value;
+  if (!email || !password) return;
+  $("pw-btn").disabled = true; $("login-status").textContent = "Signing in…";
+  const { error } = await sb.auth.signInWithPassword({ email, password });
+  $("pw-btn").disabled = false;
+  $("login-status").textContent = error ? "Couldn't sign in: " + error.message : "";
+});
 $("signout").onclick = async () => { await sb.auth.signOut(); location.reload(); };
 
 function showApp(on) { $("app").hidden = !on; $("login").hidden = on; }
@@ -456,7 +466,7 @@ function showApp(on) { $("app").hidden = !on; $("login").hidden = on; }
 async function boot() {
   try { cfg = await (await fetch("/api/config", { cache: "no-store" })).json(); } catch (e) { cfg = {}; }
   if (!cfg.supabaseUrl || !cfg.supabaseAnonKey) {
-    showApp(false); $("login-form").hidden = true;
+    showApp(false); $("login-form").hidden = true; $("pw-form").hidden = true;
     $("login-status").textContent = "Setup isn't finished: add SUPABASE_URL and SUPABASE_ANON_KEY in Vercel, then redeploy.";
     return;
   }
