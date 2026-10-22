@@ -423,6 +423,55 @@ $("newsec").addEventListener("submit", async (ev) => {
   if (window.ResizeObserver) new ResizeObserver(layoutSoon).observe($("board")); else window.addEventListener("resize", layoutSoon);
 })();
 
+/* ---------- one-time import from the Claude moodboard artifact ---------- */
+let manifest = null;
+async function checkImport() {
+  try { if (localStorage.getItem("mb-imported-v1")) return; } catch (e) {}
+  try { const r = await fetch("/migrate/manifest.json", { cache: "no-store" }); if (!r.ok) return; manifest = await r.json(); } catch (e) { return; }
+  $("import-text").textContent = "Bring in your " + manifest.pins.length + " pins and " + manifest.sections.length + " sections from the Claude moodboard.";
+  $("importbar").hidden = false;
+}
+$("import-btn").onclick = async () => {
+  if (!manifest) return;
+  const btn = $("import-btn"); btn.disabled = true;
+  const say = (t) => { $("import-text").textContent = t; };
+  try {
+    const idFor = {};
+    const findExisting = (title, parentId) => sections.find((s) => s.title.trim().toLowerCase() === title.trim().toLowerCase() && (s.parent_id || null) === (parentId || null));
+    const ordered = [...manifest.sections.filter((s) => !s.parent), ...manifest.sections.filter((s) => s.parent)];
+    for (const s of ordered) {
+      const parentId = s.parent ? idFor[s.parent] : null;
+      if (s.parent && !parentId) continue;
+      const ex = findExisting(s.title, parentId);
+      if (ex) { idFor[s.key] = ex.id; continue; }
+      const { data, error } = await sb.from("sections").insert({ title: s.title, parent_id: parentId, sort: s.sort ?? 0 }).select().single();
+      if (error) throw error;
+      sections.push(data); idFor[s.key] = data.id;
+    }
+    let n = 0;
+    for (const p of manifest.pins) {
+      n++; say("Importing pin " + n + " of " + manifest.pins.length + "…");
+      const section_id = idFor[p.section]; if (!section_id) continue;
+      let image_path = null;
+      if (p.file) {
+        const blob = await (await fetch("/migrate/" + p.file)).blob();
+        image_path = await uploadImage(new File([blob], p.file, { type: blob.type || "image/jpeg" }));
+      }
+      const row = { section_id, image_path, link: p.link || "", caption: p.caption || "", size: p.size || 1 };
+      if (p.created) row.created_at = p.created;
+      const { data, error } = await sb.from("pins").insert(row).select().single();
+      if (error) throw error;
+      pins.push(data);
+    }
+    try { localStorage.setItem("mb-imported-v1", "1"); } catch (e) {}
+    say("Imported " + manifest.pins.length + " pins. Your old moodboard is still there too.");
+    btn.hidden = true; render();
+  } catch (e) {
+    console.error(e); say("Import stopped: " + (e.message || e) + ". Press Import to try again.");
+    btn.disabled = false;
+  }
+};
+
 /* ---------- auth + boot ---------- */
 $("login-form").addEventListener("submit", async (ev) => {
   ev.preventDefault();
@@ -475,7 +524,7 @@ async function boot() {
     user = session ? session.user : null;
     if (!user) { showApp(false); return; }
     $("who").textContent = user.email || "";
-    showApp(true); await loadAll();
+    showApp(true); await loadAll(); checkImport();
   };
   const { data } = await sb.auth.getSession();
   await start(data.session);

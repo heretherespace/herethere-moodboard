@@ -1,0 +1,119 @@
+{
+ "from": "Claude moodboard artifact",
+ "sections": [
+  {
+   "key": "here-senbonkita",
+   "title": "HERE Senbonkita",
+   "parent": null,
+   "sort": 0,
+   "created": "2026-10-22T11:39:00.000Z"
+  },
+  {
+   "key": "1zh8rgi5jg6fm5c9e85k",
+   "title": "KYOTO",
+   "parent": null,
+   "sort": 1,
+   "created": "2026-10-22T13:06:10.085Z"
+  },
+  {
+   "key": "6kgq27wdymedyuu88rwd",
+   "title": "New board",
+   "parent": null,
+   "sort": 2,
+   "created": "2026-10-22T16:06:35.122Z"
+  },
+  {
+   "key": "wall-hanging",
+   "title": "Wall hanging",
+   "parent": "here-senbonkita",
+   "sort": 0,
+   "created": "2026-10-22T11:40:00.000Z"
+  },
+  {
+   "key": "artwork",
+   "title": "Artwork",
+   "parent": "here-senbonkita",
+   "sort": 2,
+   "created": "2026-10-22T11:40:02.000Z"
+  },
+  {
+   "key": "w9jp298n4s7i6gzgwqub",
+   "title": "Carpet",
+   "parent": "here-senbonkita",
+   "sort": 3,
+   "created": "2026-10-22T11:42:24.378Z"
+  },
+  {
+   "key": "uzmcql2oqkavgcp8eywk",
+   "title": "Collaterals",
+   "parent": "here-senbonkita",
+   "sort": 4,
+   "created": "2026-10-22T16:06:41.090Z"
+  }
+ ],
+ "pins": [
+  {
+   "key": "rmge0gam10uxa0ppezfl",
+   "section": "1zh8rgi5jg6fm5c9e85k",
+   "file": "34f143321156469f0cf769fccfd9b0f5.jpg",
+   "link": "https://www.pinterest.com/pin/516788126014828094/",
+   "caption": "",
+   "size": 1,
+   "created": "2026-10-22T14:20:50.749Z"
+  },
+  {
+   "key": "1eukce69etahhpem591d",
+   "section": "uzmcql2oqkavgcp8eywk",
+   "file": "3ca1d52f444f897f426b3c13f34e291c.jpg",
+   "link": "",
+   "caption": "",
+   "size": 1,
+   "created": "2026-10-22T16:06:47.966Z"
+  },
+  {
+   "key": "ea4k0qrrmr6nrhn2gp06",
+   "section": "wall-hanging",
+   "file": "cc4cb49c26eb871b8fd93e06793f00b8.jpg",
+   "link": "https://i.pinimg.com/1200x/27/6f/76/276f7698883b75d58f06c549589342e8.jpg",
+   "caption": "",
+   "size": 1,
+   "created": "2026-10-22T14:30:17.850Z"
+  },
+  {
+   "key": "fl8a9hn72p236g7txs1l",
+   "section": "wall-hanging",
+   "file": "cbd062c26d545e2d177f22d82c9058b8.jpg",
+   "link": "",
+   "caption": "",
+   "size": 2,
+   "created": "2026-10-22T14:30:47.761Z"
+  },
+  {
+   "key": "k0case0k3dj8j8ax820a",
+   "section": "1zh8rgi5jg6fm5c9e85k",
+   "file": null,
+   "link": "https://www.pinterest.com/pin/125819383333896870/",
+   "caption": "",
+   "size": 1,
+   "created": "2026-10-22T13:06:48.194Z"
+  },
+  {
+   "key": "n7so5v1m8v8rjdj1gs5w",
+   "section": "wall-hanging",
+   "file": "b40f64e8c50f62d9af57df94bbcf0b34.jpg",
+   "link": "https://i.pinimg.com/1200x/e9/e3/11/e9e3113c3de6c8c53a35ce729c4702f4.jpg",
+   "caption": "",
+   "size": 1,
+   "created": "2026-10-22T14:28:25.370Z"
+  },
+  {
+   "key": "boro-ref",
+   "section": "wall-hanging",
+   "file": "2b68dcf6873f9aff35de6aab642ca891.jpg",
+   "link": "",
+   "caption": "Indigo boro, approx. 132 × 127 cm · Mercari ¥11,250 (sold)",
+   "size": 1,
+   "created": "2026-10-22T11:40:03.000Z"
+  }
+ ]
+}
